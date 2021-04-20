@@ -11,6 +11,7 @@ class Styles : Stylesheet() {
         val redText by cssclass()
         val greenText by cssclass()
         val blackTheme by cssclass()
+        val blackThemeOnlyColor by cssclass()
         val medium by cssclass()
         val hard by cssclass()
         val extraHard by cssclass()
@@ -37,7 +38,7 @@ class Styles : Stylesheet() {
 
         blackTheme {
             baseColor = c("#0f4c81")
-            baseColor = c("#444")
+            baseColor = c("#333")
             accentColor = c("#f88379")
             focusColor = Paint.valueOf("#f88379")
             checkBox {
@@ -52,6 +53,12 @@ class Styles : Stylesheet() {
                 fontSize = 20.px
                 fontWeight = FontWeight.BOLD
             }
+        }
+        blackThemeOnlyColor {
+            baseColor = c("#0f4c81")
+            baseColor = c("#444")
+            accentColor = c("#f88379")
+            focusColor = Paint.valueOf("#f88379")
         }
 
         tabPane {

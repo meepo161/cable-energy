@@ -1,15 +1,17 @@
 package ru.avem.cable.view
 
 import javafx.beans.property.SimpleStringProperty
+import javafx.event.EventHandler
 import javafx.geometry.Pos
 import javafx.scene.control.*
 import javafx.scene.layout.Priority
 import javafx.scene.layout.VBox
 import javafx.scene.shape.Circle
 import javafx.stage.Modality
+import org.jetbrains.exposed.sql.transactions.transaction
 import ru.avem.cable.controllers.MainViewController
 import ru.avem.cable.database.entities.TestObjectsType
-import ru.avem.cable.entities.TableValues
+import ru.avem.cable.entities.*
 import ru.avem.cable.utils.State
 import ru.avem.cable.utils.Toast
 import ru.avem.cable.view.Styles.Companion.megaHard
@@ -45,12 +47,24 @@ class MainView : View("Экран Энергия") {
     var comboBox5: ComboBox<TestObjectsType> by singleAssign()
     var comboBox6: ComboBox<TestObjectsType> by singleAssign()
 
+    var cbCount1: ComboBox<String> by singleAssign()
+    var cbCount2: ComboBox<String> by singleAssign()
+    var cbCount3: ComboBox<String> by singleAssign()
+    var cbCount4: ComboBox<String> by singleAssign()
+    var cbCount5: ComboBox<String> by singleAssign()
+    var cbCount6: ComboBox<String> by singleAssign()
+
     var textField1: TextField by singleAssign()
     var textField2: TextField by singleAssign()
     var textField3: TextField by singleAssign()
     var textField4: TextField by singleAssign()
     var textField5: TextField by singleAssign()
     var textField6: TextField by singleAssign()
+    var tfSetU: TextField by singleAssign()
+    var tfSetI: TextField by singleAssign()
+    var tfSetTime: TextField by singleAssign()
+
+    var tableviewIOutSet: TableView<TableValuesIOutSet> by singleAssign()
 
     var circleAvem71: Circle by singleAssign()
     var circleAvem72: Circle by singleAssign()
@@ -75,39 +89,75 @@ class MainView : View("Экран Энергия") {
     var circleDI9: Circle by singleAssign()
 
     var buttonStart: Button by singleAssign()
+    var buttonStop: Button by singleAssign()
 
     lateinit var comboBoxList: List<ComboBox<TestObjectsType>>
+    lateinit var comboBoxListCount: List<ComboBox<String>>
     lateinit var checkBoxList: List<CheckBox>
     lateinit var textFieldList: List<TextField>
+    lateinit var textFieldSet: List<TextField>
 
-    var tableValues = observableListOf(
-        TableValues(
-            SimpleStringProperty(""),
+    var tableValuesIOut = observableListOf(
+        TableValuesIOut(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOut(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOut(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOut(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOut(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOut(
+            SimpleStringProperty("")
+        )
+    )
+    var tableValuesIOutSet = observableListOf(
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        ),
+        TableValuesIOutSet(
+            SimpleStringProperty("")
+        )
+    )
+
+    var tableValueUOut = observableListOf(
+        TableValueUOut(
+            SimpleStringProperty("")
+        )
+    )
+    var tableValueTime = observableListOf(
+        TableValueTime(
+            SimpleStringProperty("")
+        )
+    )
+    var tableValuesIn = observableListOf(
+        TableValuesIn(
             SimpleStringProperty(""),
             SimpleStringProperty("")
         ),
-        TableValues(
-            SimpleStringProperty(""),
-            SimpleStringProperty(""),
-            SimpleStringProperty("")
-        ),
-        TableValues(
-            SimpleStringProperty(""),
+        TableValuesIn(
             SimpleStringProperty(""),
             SimpleStringProperty("")
         ),
-        TableValues(
-            SimpleStringProperty(""),
-            SimpleStringProperty(""),
-            SimpleStringProperty("")
-        ),
-        TableValues(
-            SimpleStringProperty(""),
-            SimpleStringProperty(""),
-            SimpleStringProperty("")
-        ),
-        TableValues(
-            SimpleStringProperty(""),
+        TableValuesIn(
             SimpleStringProperty(""),
             SimpleStringProperty("")
         )
@@ -118,13 +168,18 @@ class MainView : View("Экран Энергия") {
 
     override fun onDock() {
         comboBoxList = listOf(comboBox1, comboBox2, comboBox3, comboBox4, comboBox5, comboBox6)
+        comboBoxListCount = listOf(cbCount1, cbCount2, cbCount3, cbCount4, cbCount5, cbCount6)
         checkBoxList = listOf(checkBox1, checkBox2, checkBox3, checkBox4, checkBox5, checkBox6)
         textFieldList = listOf(textField1, textField2, textField3, textField4, textField5, textField6)
+        textFieldSet = listOf(tfSetU, tfSetI, tfSetTime)
 
         comboBoxList.forEach { it.isDisable = true }
+        comboBoxListCount.forEach { it.isDisable = true }
         textFieldList.forEach { it.isDisable = true }
         comboBoxList.forEach { it.selectionModel.selectFirst() }
-
+        for (i in 0..5) {
+            tableValuesIOutSet[i].amperage.value = "10000"
+        }
         controller.refreshObjectsTypes()
     }
 
@@ -186,17 +241,74 @@ class MainView : View("Экран Энергия") {
                         alignmentProperty().set(Pos.CENTER)
                         vbox(spacing = 10.0) {
                             alignmentProperty().set(Pos.CENTER)
-                            hbox {
-                                paddingTop = 16.0
-                                label("")
-                            }
                             hbox(spacing = 16.0) {
                                 paddingLeft = 64.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Заданные:   ")
+                                label("U, В ")
+                                tfSetU = textfield {
+                                    promptText = "Напряжение, В"
+                                    maxWidth = 180.0
+                                    alignment = Pos.CENTER
+                                }
+                                label("Ток, мА ")
+                                tfSetI = textfield {
+                                    promptText = "Ток, мА"
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    onAction = EventHandler {
+                                        if (text.isInt()) {
+                                            for (i in 0..5) {
+                                                tableValuesIOutSet[i].amperage.value = text.toString()
+                                            }
+                                        } else {
+                                            runLater {
+                                                Toast.makeText("Неверное значение тока утечки")
+                                                    .show(Toast.ToastType.ERROR)
+                                            }
+                                        }
+
+                                    }
+                                }
+                                label("Время, с ")
+                                tfSetTime = textfield {
+                                    promptText = "Время, с"
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                }
+                                paddingTop = 0.0
+                            }
+                            hbox(spacing = 16.0) {
+                                paddingLeft = 32.0
+                                alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Пост 1")
                                 checkBox1 = checkbox {
                                     action {
                                         comboBox1.isDisable = !isSelected
                                         textField1.isDisable = !isSelected
+                                        cbCount1.isDisable = !isSelected
+                                    }
+                                }
+                                cbCount1 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox1.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox1.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
                                     }
                                 }
                                 comboBox1 = combobox {
@@ -210,15 +322,40 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                             hbox(spacing = 16.0) {
-                                paddingLeft = 64.0
+                                paddingLeft = 32.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Пост 2")
                                 checkBox2 = checkbox {
                                     action {
                                         comboBox2.isDisable = !isSelected
                                         textField2.isDisable = !isSelected
+                                        cbCount2.isDisable = !isSelected
                                     }
 
                                 }
+                                cbCount2 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox2.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox2.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
+                                    }
+                                }
+
                                 comboBox2 = combobox {
                                     minWidth = 300.0
 
@@ -230,14 +367,38 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                             hbox(spacing = 16.0) {
-                                paddingLeft = 64.0
+                                paddingLeft = 32.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Пост 3")
                                 checkBox3 = checkbox {
                                     action {
                                         comboBox3.isDisable = !isSelected
                                         textField3.isDisable = !isSelected
+                                        cbCount3.isDisable = !isSelected
                                     }
 
+                                }
+                                cbCount3 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox3.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox3.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
+                                    }
                                 }
                                 comboBox3 = combobox {
                                     minWidth = 300.0
@@ -250,14 +411,38 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                             hbox(spacing = 16.0) {
-                                paddingLeft = 64.0
+                                paddingLeft = 32.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Пост 4")
                                 checkBox4 = checkbox {
                                     action {
                                         comboBox4.isDisable = !isSelected
                                         textField4.isDisable = !isSelected
+                                        cbCount4.isDisable = !isSelected
                                     }
 
+                                }
+                                cbCount4 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox4.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox4.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
+                                    }
                                 }
                                 comboBox4 = combobox {
                                     minWidth = 300.0
@@ -270,14 +455,38 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                             hbox(spacing = 16.0) {
-                                paddingLeft = 64.0
+                                paddingLeft = 32.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
+                                label("Пост 5")
                                 checkBox5 = checkbox {
                                     action {
                                         comboBox5.isDisable = !isSelected
                                         textField5.isDisable = !isSelected
+                                        cbCount5.isDisable = !isSelected
                                     }
 
+                                }
+                                cbCount5 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox5.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox5.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
+                                    }
                                 }
                                 comboBox5 = combobox {
                                     minWidth = 300.0
@@ -290,15 +499,38 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                             hbox(spacing = 16.0) {
-                                paddingLeft = 64.0
+                                paddingLeft = 32.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
-
+                                label("Пост 6")
                                 checkBox6 = checkbox {
                                     action {
                                         comboBox6.isDisable = !isSelected
                                         textField6.isDisable = !isSelected
+                                        cbCount6.isDisable = !isSelected
                                     }
 
+                                }
+                                cbCount6 = combobox {
+                                    isEditable = true
+                                    maxWidth = 120.0
+                                    alignment = Pos.CENTER
+                                    val list = observableListOf<String>()
+                                    for (i in 1..25) {
+                                        if (i != 1) {
+                                            list.add("$i")
+                                        }
+                                        list.add("${i}b")
+                                    }
+                                    items = list
+                                    onAction = javafx.event.EventHandler {
+                                        comboBox6.items.clear()
+                                        if (!selectionModel.isEmpty) {
+                                            comboBox6.items = transaction {
+                                                TestObjectsType.all().toList().asObservable()
+                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                .toObservable()
+                                        }
+                                    }
                                 }
                                 comboBox6 = combobox {
                                     minWidth = 300.0
@@ -311,15 +543,76 @@ class MainView : View("Экран Энергия") {
                                 }
                             }
                         }
-                        tableview(tableValues) {
+                        tableviewIOutSet = tableview(tableValuesIOutSet) {
                             minHeight = 404.0
                             maxHeight = 404.0
-                            minWidth = 600.0
+                            minWidth = 200.0
+                            columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+                            column("Заданные: I, мА", TableValuesIOutSet::amperage.getter).makeEditable()
+                        }
+                        tableview(tableValuesIOut) {
+                            minHeight = 404.0
+                            maxHeight = 404.0
+                            minWidth = 200.0
                             columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
                             mouseTransparentProperty().set(true)
-                            column("U, В", TableValues::voltage.getter)
-                            column("I, мA", TableValues::amperage.getter)
-                            column("Время, сек", TableValues::time.getter)
+                            column("I, мА", TableValuesIOut::amperage.getter)
+                        }
+                        vbox {
+                            tableview(tableValueUOut) {
+                                minHeight = 119.0
+                                maxHeight = 119.0
+                                minWidth = 200.0
+                                maxWidth = 200.0
+                                columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+                                mouseTransparentProperty().set(true)
+                                column("U, В", TableValueUOut::voltage.getter)
+                            }
+                            tableview(tableValueTime) {
+                                minHeight = 119.0
+                                maxHeight = 119.0
+                                minWidth = 200.0
+                                maxWidth = 200.0
+                                columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+                                mouseTransparentProperty().set(true)
+                                column("Время, с", TableValueTime::time.getter)
+                            }
+                        }
+//                        vbox {
+//                            tableview(tableValuesIn) {
+//                                minHeight = 233.0
+//                                maxHeight = 233.0
+//                                minWidth = 400.0
+//                                maxWidth = 400.0
+//                                columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+//                                mouseTransparentProperty().set(true)
+//                                column("U, В", TableValuesIn::voltage.getter)
+//                                column("I, А", TableValuesIn::amperage.getter)
+//                            }
+//                        }
+
+                    }
+                    hbox(spacing = 16.0) {
+                        alignmentProperty().set(Pos.CENTER)
+                        anchorpane {
+                            scrollpane {
+//                            anchorpaneConstraints {
+//                                leftAnchor = 0.0
+//                                rightAnchor = 0.0
+//                                topAnchor = 0.0
+//                                bottomAnchor = 0.0
+//                            }
+                                minHeight = 400.0
+                                maxHeight = 400.0
+                                prefHeight = 400.0
+                                minWidth = 1200.0
+                                minWidth = 1200.0
+                                prefWidth = 1200.0
+                                vBoxLog = vbox {
+                                }.addClass(Styles.maxTemp)
+
+                                vvalueProperty().bind(vBoxLog.heightProperty())
+                            }
                         }
 
                         vbox(spacing = 4.0) {
@@ -361,15 +654,6 @@ class MainView : View("Экран Энергия") {
                                     fill = State.INTERMEDIATE.c
                                 }
                                 label("PМ130P")
-                            }
-                            hbox(spacing = 16.0) {
-                                maxWidth = 200.0
-                                alignment = Pos.CENTER_LEFT
-                                circleCP2000 = circle(radius = 12) {
-                                    stroke = c("black")
-                                    fill = State.INTERMEDIATE.c
-                                }
-                                label("ЧП")
                             }
                             hbox(spacing = 16.0) {
                                 maxWidth = 200.0
@@ -433,6 +717,15 @@ class MainView : View("Экран Энергия") {
                                     fill = State.INTERMEDIATE.c
                                 }
                                 label("КВМ")
+                            }
+                            hbox(spacing = 16.0) {
+                                maxWidth = 200.0
+                                alignment = Pos.CENTER_LEFT
+                                circleCP2000 = circle(radius = 12) {
+                                    stroke = c("black")
+                                    fill = State.INTERMEDIATE.c
+                                }
+                                label("ЧП")
                             }
                         }
                         vbox(spacing = 8.0) {
@@ -531,36 +824,23 @@ class MainView : View("Экран Энергия") {
                             }
                         }
                     }
-                    hbox {
-                        alignmentProperty().set(Pos.CENTER)
-                        anchorpane {
-                            scrollpane {
-//                            anchorpaneConstraints {
-//                                leftAnchor = 0.0
-//                                rightAnchor = 0.0
-//                                topAnchor = 0.0
-//                                bottomAnchor = 0.0
-//                            }
-                                minHeight = 400.0
-                                maxHeight = 400.0
-                                prefHeight = 400.0
-                                minWidth = 1800.0
-                                minWidth = 1800.0
-                                prefWidth = 1800.0
-                                vBoxLog = vbox {
-                                }
-
-                                vvalueProperty().bind(vBoxLog.heightProperty())
+                    hbox(spacing = 6.0) {
+                        alignment = Pos.CENTER
+                        buttonStart = button("Старт") {
+                            minHeight = 100.0
+                            minWidth = 600.0
+                            action {
+                                handleStart()
                             }
-                        }
+                        }.addClass(Styles.startStop)
+//                        buttonStop = button("СТОП ЧП") {
+//                            minHeight = 100.0
+//                            minWidth = 600.0
+//                            action {
+//                                controller.stopCP2000()
+//                            }
+//                        }.addClass(Styles.startStop)
                     }
-                    buttonStart = button("Старт") {
-                        minHeight = 100.0
-                        minWidth = 600.0
-                        action {
-                            handleStart()
-                        }
-                    }.addClass(Styles.startStop)
 
                 }
 
@@ -608,15 +888,106 @@ class MainView : View("Экран Энергия") {
             val isOneCheckBoxSelected = checkBoxList.map(CheckBox::isSelected).reduce { acc, b ->
                 acc || b
             }
+            var isFine = true
+            if (checkBox1.isSelected) {
+                if (comboBox1.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[0].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox1.selectionModel.clearSelection()
+                cbCount1.selectionModel.clearSelection()
+            }
+            if (checkBox2.isSelected) {
+                if (comboBox2.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[1].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox2.selectionModel.clearSelection()
+                cbCount2.selectionModel.clearSelection()
+            }
+            if (checkBox3.isSelected) {
+                if (comboBox3.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[2].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox3.selectionModel.clearSelection()
+                cbCount3.selectionModel.clearSelection()
+            }
+            if (checkBox4.isSelected) {
+                if (comboBox4.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[3].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox4.selectionModel.clearSelection()
+                cbCount4.selectionModel.clearSelection()
+            }
+            if (checkBox5.isSelected) {
+                if (comboBox5.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[4].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox5.selectionModel.clearSelection()
+                cbCount5.selectionModel.clearSelection()
+            }
+            if (checkBox6.isSelected) {
+                if (comboBox6.selectionModel.selectedItem == null) {
+                    isFine = false
+                }
+                if (tableValuesIOutSet[5].amperage.value.toString().toInt() < 0) {
+                    isFine = false
+                }
+            } else {
+                comboBox6.selectionModel.clearSelection()
+                cbCount6.selectionModel.clearSelection()
+            }
+            if (!tfSetU.text.isInt()) {
+                isFine = false
+            } else {
+                if (tfSetU.text.toInt() < 1 || tfSetU.text.toInt() > 10000) {
+                    isFine = false
+                }
+            }
+            if (!tfSetTime.text.isInt()) {
+                isFine = false
+            }
             if (controller.isExperimentRunning) {
                 controller.cause = "Отменено оператором"
+            } else if (!isFine) {
+                runLater {
+                    Toast.makeText("Проверьте правильность введенных данных").show(Toast.ToastType.ERROR)
+                    comboBoxList.forEach { it.isDisable = true }
+                    comboBoxListCount.forEach { it.isDisable = true }
+                    textFieldList.forEach { it.isDisable = true }
+                }
+            } else if (!controller.isResponding) {
+                runLater {
+                    Toast.makeText("Нет связи с устройствами").show(Toast.ToastType.ERROR)
+                }
             } else if (isOneCheckBoxSelected) {
                 runLater {
                     buttonStart.text = "СТОП"
+                    mainMenubar.isDisable = true
+                    tableviewIOutSet.isDisable = true
                     comboBoxList.forEach { it.isDisable = true }
                     checkBoxList.forEach { it.isDisable = true }
                     textFieldList.forEach { it.isDisable = true }
-
+                    textFieldSet.forEach { it.isDisable = true }
+                    comboBoxListCount.forEach { it.isDisable = true }
                     clearTable()
                 }
 
@@ -629,17 +1000,25 @@ class MainView : View("Экран Энергия") {
             }
             runLater {
                 buttonStart.text = "Старт"
+                mainMenubar.isDisable = false
+                tableviewIOutSet.isDisable = false
                 checkBoxList.forEach { it.isDisable = false }
                 checkBoxList.forEach { it.isSelected = false }
+                textFieldList.forEach { it.isDisable = false }
+                textFieldSet.forEach { it.isDisable = false }
+                comboBoxListCount.forEach {
+                    it.selectionModel.clearSelection()
+                }
+                comboBoxList.forEach {
+                    it.selectionModel.clearSelection()
+                }
             }
         }
     }
 
     private fun clearTable() {
-        tableValues.forEach {
-            it.voltage.value = ""
+        tableValuesIOut.forEach {
             it.amperage.value = ""
-            it.time.value = ""
         }
     }
 }

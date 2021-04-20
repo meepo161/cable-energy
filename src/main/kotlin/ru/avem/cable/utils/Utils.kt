@@ -1,14 +1,27 @@
 package ru.avem.cable.utils
 
+import javafx.application.Platform
+import javafx.event.ActionEvent
 import javafx.event.EventHandler
+import javafx.scene.control.Alert
+import javafx.scene.control.ButtonBar
+import javafx.scene.control.ButtonType
 import javafx.scene.control.TextField
-import tornadofx.ViewTransition
-import tornadofx.seconds
+import javafx.scene.image.Image
+import javafx.scene.image.ImageView
+import javafx.stage.Modality
+import javafx.stage.Stage
+import javafx.stage.StageStyle
+import javafx.stage.Window
+import ru.avem.cable.app.Cable
+import ru.avem.cable.view.Styles
+import tornadofx.*
 import java.awt.Desktop
 import java.io.*
 import java.nio.ByteBuffer
 import java.nio.file.Paths
 import java.util.*
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.time.ExperimentalTime
 import kotlin.time.milliseconds
@@ -193,4 +206,94 @@ private fun padZero(d: Int) = d.toString().padStart(2, '0')
 fun callKeyBoard() {
     Desktop.getDesktop()
         .open(Paths.get("C:/Program Files/Common Files/Microsoft Shared/ink/TabTip.exe").toFile())
+}
+
+fun showOKDialog(
+    timeout: Long,
+    title: String,
+    text: String,
+    isDialogOpened: () -> Boolean,
+    breakCondition: () -> Boolean
+) {
+    val initTime = System.currentTimeMillis()
+
+    runLater {
+        Alert(Alert.AlertType.NONE, title, ButtonType.OK).apply {
+            this.title = title
+            contentText = text
+        }.also {
+            (it.dialogPane.scene.window as Stage).icons.add(FX.primaryStage.icons[0])
+            it.dialogPane.style {
+
+            }
+            it.showAndWait().ifPresent { }
+        }
+    }
+
+    while (isDialogOpened() && !breakCondition()) {
+        Thread.sleep(10)
+        val elapsedTime = System.currentTimeMillis() - initTime
+
+        if (elapsedTime > timeout) {
+            throw Exception("Время ожидания диалога превышено")
+        }
+    }
+}
+
+fun showSaveDialogConfirmation(currentWindow: Window?) {
+    confirmation(
+        "Конец",
+        "Все выбранные испытания завершены/отменены. Протоколы сохранены",
+        ButtonType("Ок"),
+        title = "Конец",
+        owner = currentWindow
+    ) { buttonType ->
+        when (buttonType.text) {
+            "Да" -> {
+            }
+        }
+    }
+}
+
+fun showTwoWayDialog(
+    title: String,
+    text: String,
+    way1Title: String,
+    way2Title: String,
+    way1: () -> Unit,
+    way2: () -> Unit,
+    currentWindow: Window
+) {
+    val initTime = System.currentTimeMillis()
+
+    var isDialogOpened = true
+
+    runLater {
+        warning(
+            title,
+            text,
+            ButtonType(way1Title),
+            ButtonType(way2Title),
+            owner = currentWindow
+        ) { buttonType ->
+            when (buttonType.text) {
+                way1Title -> way1()
+                way2Title -> way2()
+            }
+            isDialogOpened = false
+        }
+    }
+
+//    while (isDialogOpened && !breakCondition()) {
+//        println("running ${System.currentTimeMillis()}")
+//        Thread.sleep(10)
+//        val elapsedTime = System.currentTimeMillis() - initTime
+//
+//        if (elapsedTime > timeout) {
+////            if (isDialogOpened) { TODO
+////                runLater { alert.close() }
+////            }
+//            throw Exception("Время ожидания диалога превышено")
+//        }
+//    }
 }

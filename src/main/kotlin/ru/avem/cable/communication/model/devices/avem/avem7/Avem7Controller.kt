@@ -37,13 +37,13 @@ class Avem7Controller(
                         val modbusRegister =
                             protocolAdapter.readHoldingRegisters(id, register.address, 2).map(ModbusRegister::toShort)
                         register.value =
-                            allocateOrderedByteBuffer(modbusRegister, TypeByteOrder.LITTLE_ENDIAN, 4).float
+                            allocateOrderedByteBuffer(modbusRegister, TypeByteOrder.BIG_ENDIAN, 4).float
                     }
                     DeviceRegister.RegisterValueType.INT32 -> {
                         val modbusRegister =
                             protocolAdapter.readHoldingRegisters(id, register.address, 2).map(ModbusRegister::toShort)
                         register.value =
-                            allocateOrderedByteBuffer(modbusRegister, TypeByteOrder.LITTLE_ENDIAN, 4).int
+                            allocateOrderedByteBuffer(modbusRegister, TypeByteOrder.BIG_ENDIAN, 4).int
                     }
                 }
             }
@@ -63,14 +63,14 @@ class Avem7Controller(
         isResponding = try {
             when (value) {
                 is Float -> {
-                    val bb = ByteBuffer.allocate(4).putFloat(value).order(ByteOrder.LITTLE_ENDIAN)
+                    val bb = ByteBuffer.allocate(4).putFloat(value).order(ByteOrder.BIG_ENDIAN)
                     val registers = listOf(ModbusRegister(bb.getShort(2)), ModbusRegister(bb.getShort(0)))
                     transactionWithAttempts {
                         protocolAdapter.presetMultipleRegisters(id, register.address, registers)
                     }
                 }
                 is Int -> {
-                    val bb = ByteBuffer.allocate(4).putInt(value).order(ByteOrder.LITTLE_ENDIAN)
+                    val bb = ByteBuffer.allocate(4).putInt(value).order(ByteOrder.BIG_ENDIAN)
                     val registers = listOf(ModbusRegister(bb.getShort(2)), ModbusRegister(bb.getShort(0)))
                     transactionWithAttempts {
                         protocolAdapter.presetMultipleRegisters(id, register.address, registers)

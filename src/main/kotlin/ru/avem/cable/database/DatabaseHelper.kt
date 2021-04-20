@@ -33,17 +33,20 @@ fun validateDB() {
             if (TestObjectsType.all().count() < 1) {
                 TestObjectsType.new {
                     objectName = "111111"
-                    scheme = "0.5"
+                    cores = "1"
+                    scheme = "[1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1]"
                 }
 
                 TestObjectsType.new {
                     objectName = "22"
-                    scheme = "2.5"
+                    cores = "2"
+                    scheme = "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1]"
                 }
 
                 TestObjectsType.new {
                     objectName = "3333333"
-                    scheme = "3.5"
+                    cores = "3"
+                    scheme = "[0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0]"
                 }
 
                 ProtocolSingle.new {

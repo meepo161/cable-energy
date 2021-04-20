@@ -13,19 +13,21 @@ import ru.avem.cable.communication.model.devices.delta.DeltaModel.Companion.POIN
 import ru.avem.cable.communication.model.devices.delta.DeltaModel.Companion.POINT_2_VOLTAGE_REGISTER
 import ru.avem.cable.communication.utils.TypeByteOrder
 import ru.avem.cable.communication.utils.allocateOrderedByteBuffer
+import ru.avem.cable.utils.Measuring.VOLT
 import ru.avem.kserialpooler.communication.adapters.modbusrtu.ModbusRTUAdapter
 import ru.avem.kserialpooler.communication.adapters.utils.ModbusRegister
 import ru.avem.kserialpooler.communication.utils.TransportException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
+
 class DeltaController(
     override val name: String,
     override val protocolAdapter: ModbusRTUAdapter,
     override val id: Byte
 ) : IDeviceController {
-    val model = DeltaModel()
     override var isResponding = false
+    private val model = DeltaModel()
     override var requestTotalCount = 0
     override var requestSuccessCount = 0
     override val pollingRegisters = mutableListOf<DeviceRegister>()
@@ -33,12 +35,40 @@ class DeltaController(
     override val writingRegisters = mutableListOf<Pair<DeviceRegister, Number>>()
     override val pollingMutex = Any()
 
+    init {
+        protocolAdapter.connection.connect()
+    }
+
     override fun readRegister(register: DeviceRegister) {
         isResponding = try {
             transactionWithAttempts {
-                val modbusRegister =
-                    protocolAdapter.readHoldingRegisters(id, register.address, 2).map(ModbusRegister::toShort)
-                register.value = allocateOrderedByteBuffer(modbusRegister, TypeByteOrder.BIG_ENDIAN, 4).float.toDouble()
+                when (register.valueType) {
+                    DeviceRegister.RegisterValueType.SHORT -> {
+                        val modbusRegister =
+                            protocolAdapter.readHoldingRegisters(id, register.address, 1).map(ModbusRegister::toShort)
+                        register.value = modbusRegister.first().toDouble()
+                    }
+                    DeviceRegister.RegisterValueType.FLOAT -> {
+                        val modbusRegister =
+                            protocolAdapter.readHoldingRegisters(id, register.address, 2).map(ModbusRegister::toShort)
+                        register.value =
+                            ru.avem.kserialpooler.communication.utils.allocateOrderedByteBuffer(
+                                modbusRegister,
+                                ru.avem.kserialpooler.communication.utils.TypeByteOrder.BIG_ENDIAN,
+                                4
+                            ).float.toDouble()
+                    }
+                    DeviceRegister.RegisterValueType.INT32 -> {
+                        val modbusRegister =
+                            protocolAdapter.readHoldingRegisters(id, register.address, 2).map(ModbusRegister::toShort)
+                        register.value =
+                            ru.avem.kserialpooler.communication.utils.allocateOrderedByteBuffer(
+                                modbusRegister,
+                                ru.avem.kserialpooler.communication.utils.TypeByteOrder.BIG_ENDIAN,
+                                4
+                            ).int.toDouble()
+                    }
+                }
             }
             true
         } catch (e: TransportException) {
@@ -52,6 +82,7 @@ class DeltaController(
         }
     }
 
+    @Synchronized
     override fun <T : Number> writeRegister(register: DeviceRegister, value: T) {
         isResponding = try {
             when (value) {
@@ -102,83 +133,47 @@ class DeltaController(
 
     override fun getRegisterById(idRegister: String) = model.getRegisterById(idRegister)
 
+    enum class Direction {
+        FORWARD,
+        REVERSE
+    }
 
-    fun startObject() {
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(CONTROL_REGISTER).address,
-                listOf(ModbusRegister(0b10))
-            )
+    fun startObject(direction: Direction = Direction.FORWARD) {
+        if (direction == Direction.FORWARD) {
+            writeRegister(getRegisterById(CONTROL_REGISTER), (0b010010).toShort())
+        }
+        if (direction == Direction.REVERSE) {
+            writeRegister(getRegisterById(CONTROL_REGISTER), (0b100010).toShort())
         }
     }
 
     fun stopObject() {
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(CONTROL_REGISTER).address,
-                listOf(ModbusRegister(0b1))
-            )
+        writeRegister(getRegisterById(CONTROL_REGISTER), (0b1).toShort())
+    }
+
+    fun setObjectParams(fOut: Number, voltageP1: Number, fP1: Number) {
+        try {
+            writeRegister(getRegisterById(MAX_VOLTAGE_REGISTER), (300.v() + 1).toShort())
+            writeRegister(getRegisterById(MAX_FREQUENCY_REGISTER), (50.hz() + 1).toShort())
+            writeRegister(getRegisterById(NOM_FREQUENCY_REGISTER), (50.hz() + 1).toShort())
+
+            writeRegister(getRegisterById(POINT_1_VOLTAGE_REGISTER), voltageP1.v())
+            writeRegister(getRegisterById(POINT_1_FREQUENCY_REGISTER), fP1.hz())
+
+            writeRegister(getRegisterById(POINT_2_VOLTAGE_REGISTER), 1.v())
+            writeRegister(getRegisterById(POINT_2_FREQUENCY_REGISTER), 1.hz())
+
+            writeRegister(getRegisterById(CURRENT_FREQUENCY_OUTPUT_REGISTER), fOut.hz())
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
-    fun setObjectParams(fOut: Short, voltageP1: Short, fP1: Short) {
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(POINT_1_VOLTAGE_REGISTER).address,
-                listOf(ModbusRegister(voltageP1))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(POINT_1_FREQUENCY_REGISTER).address,
-                listOf(ModbusRegister(fP1))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(CURRENT_FREQUENCY_OUTPUT_REGISTER).address,
-                listOf(ModbusRegister(fOut))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(MAX_VOLTAGE_REGISTER).address,
-                listOf(ModbusRegister(52 * 10))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(MAX_FREQUENCY_REGISTER).address,
-                listOf(ModbusRegister(50 * 100))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(NOM_FREQUENCY_REGISTER).address,
-                listOf(ModbusRegister(50 * 100))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(POINT_2_VOLTAGE_REGISTER).address,
-                listOf(ModbusRegister(40))
-            )
-        }
-        transactionWithAttempts {
-            protocolAdapter.presetMultipleRegisters(
-                id,
-                getRegisterById(POINT_2_FREQUENCY_REGISTER).address,
-                listOf(ModbusRegister(50))
-            )
-        }
+    private fun Number.hz(): Short = (this.toDouble() * 100).toInt().toShort()
+    private fun Number.v(): Short = (this.toDouble() * 10).toInt().toShort()
+
+    fun setObjectUMax(voltageMax: Number) {
+        writeRegister(getRegisterById(POINT_1_VOLTAGE_REGISTER), voltageMax.v())
     }
 }
+

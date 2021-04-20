@@ -14,14 +14,19 @@ enum class ExperimentType(val type: String) {
 
 enum class LogTag(val c: Color) {
     MESSAGE(c("#5dbb25")),
-    ERROR(c("#ff3935")),
-    DEBUG(c("#359eee"))
+    ERROR(c("#ff1b1b")),
+    DEBUG(c("#33ccff"))
 }
 
 enum class State(val c: Color) {
     OK(c("#00dd00")),
     INTERMEDIATE(c("#6f6fff")),
     BAD(c("#fa1414")),
+}
+
+object Measuring {
+    const val VOLT = 10
+    const val HZ = 100
 }
 
 const val KTR = 31

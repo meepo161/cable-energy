@@ -331,7 +331,6 @@ fun fillParameters18(
         fillOneCell(row, columnNumber + 37, cellStyle, valuesForExcel17[i])
         row = sheet.createRow(++rowNum)
     }
-
 }
 
 private fun fillOneCell(row: Row, columnNum: Int, cellStyle: XSSFCellStyle, points: Double): Int {
