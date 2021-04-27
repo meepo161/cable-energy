@@ -49,6 +49,7 @@ class MainViewController : Controller() {
     var isResponding = false
 
 
+
     @Volatile
     var isExperimentRunning: Boolean = false
 
@@ -142,24 +143,24 @@ class MainViewController : Controller() {
             view.tableValueUOut[0].voltage.value = formatRealNumber(measuringUKVM).toString()
         }
 
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_A_REGISTER) { value ->
-//            view.tableValuesIn[0].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
-//        }
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_B_REGISTER) { value ->
-//            view.tableValuesIn[1].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
-//        }
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_C_REGISTER) { value ->
-//            view.tableValuesIn[2].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
-//        }
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_AB_REGISTER) { value ->
-//            view.tableValuesIn[0].voltage.value = formatRealNumber(value.toDouble()).toString()
-//        }
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_BC_REGISTER) { value ->
-//            view.tableValuesIn[1].voltage.value = formatRealNumber(value.toDouble()).toString()
-//        }
-//        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_CA_REGISTER) { value ->
-//            view.tableValuesIn[2].voltage.value = formatRealNumber(value.toDouble()).toString()
-//        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_A_REGISTER) { value ->
+            view.tableValuesIn[0].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
+        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_B_REGISTER) { value ->
+            view.tableValuesIn[1].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
+        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.I_C_REGISTER) { value ->
+            view.tableValuesIn[2].amperage.value = formatRealNumber(value.toDouble() * 50).toString()
+        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_AB_REGISTER) { value ->
+            view.tableValuesIn[0].voltage.value = formatRealNumber(value.toDouble()).toString()
+        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_BC_REGISTER) { value ->
+            view.tableValuesIn[1].voltage.value = formatRealNumber(value.toDouble()).toString()
+        }
+        CommunicationModel.startPoll(CommunicationModel.DeviceID.PM130, PM130Model.U_CA_REGISTER) { value ->
+            view.tableValuesIn[2].voltage.value = formatRealNumber(value.toDouble()).toString()
+        }
 
         CommunicationModel.startPoll(CommunicationModel.DeviceID.A71, Avem7Model.AMPERAGE) { value ->
             view.tableValuesIOut[0].amperage.value = (value.toDouble() * 2 * 1000).toInt().toString()
@@ -220,8 +221,12 @@ class MainViewController : Controller() {
                 }
                 view.checkBox6.isSelected = false
             }
+            var sum = 0
+            view.tableValuesIOut.forEach{
+                sum += it.amperage.value.toInt()
+            }
+            view.tableValueIOutSum[0].amperage.value = sum.toString()
         }
-
     }
 
     fun start() {
@@ -230,6 +235,7 @@ class MainViewController : Controller() {
                 Toast.makeText("Выставьте объекты испытания из выбранных").show(Toast.ToastType.ERROR)
             }
         } else {
+            var timeOut = 0
             appendOneMessageToLog(LogTag.DEBUG, "Начало испытания")
             isExperimentRunning = true
 
@@ -257,7 +263,12 @@ class MainViewController : Controller() {
             if (isExperimentRunning) {
                 appendOneMessageToLog(LogTag.DEBUG, "Подготовка схемы")
                 owenPR1.on1_1()
-                owenPR1.on1_2()
+
+                if (!view.isBurn) {
+                    owenPR1.on1_2()
+                } else {
+                    owenPR2.on21_1()
+                }
 
                 owenPR2.on2_1()
                 owenPR2.on2_2()
@@ -275,10 +286,10 @@ class MainViewController : Controller() {
             if (isExperimentRunning) {
                 appendOneMessageToLog(LogTag.DEBUG, "Инициализация частотного преобразователя")
             }
-
-            while (!cp2000.isResponding && isExperimentRunning) {
+            timeOut = 30
+            while (!cp2000.isResponding && isExperimentRunning && timeOut-- > 0) {
                 cp2000.readRegister(cp2000.getRegisterById(DeltaModel.STATUS_REGISTER))
-                sleep(100)
+                sleep(1000)
             }
 
             isCP2000Ready = true
@@ -481,14 +492,18 @@ class MainViewController : Controller() {
                             cp2000.startObject()
                         }
 
-                        var timeOut = 50
+                        timeOut = 50
                         while (isExperimentRunning && timeOut-- > 0) {
                             sleep(100)
                         }
 
-                        if (isExperimentRunning) {
+                        if (isExperimentRunning && !view.isBurn) {
                             appendOneMessageToLog(LogTag.DEBUG, "Поднятие напряжения до ${view.tfSetU.text.toInt()}В")
-                            regulation(1 * VOLT, 10, 3, view.tfSetU.text.toDouble(), 0.15, 100.0, 300, 500)
+                            regulation(1 * VOLT, 10, 3, view.tfSetU.text.toDouble(), 0.15, 100.0, 300, 300)
+                        }
+                        if (isExperimentRunning && view.isBurn) {
+                            appendOneMessageToLog(LogTag.DEBUG, "Операция прожига")
+                            regulationBurn(1 * VOLT, 10, 3, 10000.0, 0.15, 100.0, 300, 300)
                         }
 
                         if (isExperimentRunning) {
@@ -501,7 +516,6 @@ class MainViewController : Controller() {
                             sleep(1000)
                             view.tableValueTime[0].time.value = timeOut.toString()
                         }
-
                         if (isExperimentRunning) {
                             appendOneMessageToLog(LogTag.MESSAGE, "Выдержка завершена")
                             appendOneMessageToLog(LogTag.DEBUG, "Остановка частотного преобразователя")
@@ -699,7 +713,8 @@ class MainViewController : Controller() {
         var start = start
         val coarseMinLimit = 1 - coarseLimit
         val coarseMaxLimit = 1 + coarseLimit
-        while (isExperimentRunning && (measuringUKVM < end * coarseMinLimit || measuringUKVM > end * coarseMaxLimit) && isDevicesResponding()) {
+        var timeOut = 30
+        while (isExperimentRunning && (measuringUKVM < end * coarseMinLimit || measuringUKVM > end * coarseMaxLimit) && isDevicesResponding() && timeOut-- > 0) {
             if (measuringUKVM < end * coarseMinLimit) {
                 cp2000.setObjectUMax(coarseStep.let { start += it; start })
             } else if (measuringUKVM > end * coarseMaxLimit) {
@@ -708,7 +723,8 @@ class MainViewController : Controller() {
             sleep(coarseSleep.toLong())
             appendOneMessageToLog(LogTag.MESSAGE, "Выводим напряжение для получения заданного значения грубо")
         }
-        while (isExperimentRunning && (measuringUKVM < end /*- fineLimit TODO чтоб больше было*/ || measuringUKVM > end + fineLimit) && isDevicesResponding()) {
+        timeOut = 30
+        while (isExperimentRunning && (measuringUKVM < end /*- fineLimit TODO чтоб больше было*/ || measuringUKVM > end + fineLimit) && isDevicesResponding() && timeOut-- > 0) {
             if (measuringUKVM < end /*- fineLimit*/) {
                 cp2000.setObjectUMax(fineStep.let { start += it; start })
             } else if (measuringUKVM > end + fineLimit) {
@@ -716,6 +732,44 @@ class MainViewController : Controller() {
             }
             sleep(fineSleep.toLong())
             appendOneMessageToLog(LogTag.MESSAGE, "Выводим напряжение для получения заданного значения точно")
+        }
+        return start
+    }
+
+    private fun regulationBurn(
+        start: Int,
+        coarseStep: Int,
+        fineStep: Int,
+        end: Double,
+        coarseLimit: Double,
+        fineLimit: Double,
+        coarseSleep: Int,
+        fineSleep: Int
+    ): Int {
+        var start = start
+        val coarseMinLimit = 1 - coarseLimit
+        val coarseMaxLimit = 1 + coarseLimit
+        var timeOut = 30
+        while (isExperimentRunning && (view.tableValueIOutSum[0].amperage.value.toInt() < end * coarseMinLimit || view.tableValueIOutSum[0].amperage.value.toInt() > end * coarseMaxLimit) && isDevicesResponding() && timeOut-- > 0) {
+            if (view.tableValueIOutSum[0].amperage.value.toInt() < end * coarseMinLimit) {
+                cp2000.setObjectUMax(coarseStep.let { start += it; start })
+            } else if (view.tableValueIOutSum[0].amperage.value.toInt() > end * coarseMaxLimit) {
+                cp2000.setObjectUMax(coarseStep.let { start -= it; start })
+            }
+            sleep(coarseSleep.toLong())
+            appendOneMessageToLog(LogTag.MESSAGE, "Выводим напряжение для получения заданного значения тока грубо")
+        }
+
+
+        timeOut = 30
+        while (isExperimentRunning && (view.tableValueIOutSum[0].amperage.value.toInt() < end /*- fineLimit TODO чтоб больше было*/ || view.tableValueIOutSum[0].amperage.value.toInt() > end + fineLimit) && isDevicesResponding() && timeOut-- > 0) {
+            if (view.tableValueIOutSum[0].amperage.value.toInt() < end /*- fineLimit*/) {
+                cp2000.setObjectUMax(fineStep.let { start += it; start })
+            } else if (view.tableValueIOutSum[0].amperage.value.toInt() > end + fineLimit) {
+                cp2000.setObjectUMax(fineStep.let { start -= it; start })
+            }
+            sleep(fineSleep.toLong())
+            appendOneMessageToLog(LogTag.MESSAGE, "Выводим напряжение для получения заданного значения тока точно")
         }
         return start
     }

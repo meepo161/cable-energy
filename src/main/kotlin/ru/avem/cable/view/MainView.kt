@@ -33,6 +33,13 @@ class MainView : View("Экран Энергия") {
     var comIndicateCP2000: Circle by singleAssign()
     var vBoxLog: VBox by singleAssign()
 
+    var cbSetU: ComboBox<String> by singleAssign()
+    var cbSetUList = observableListOf<String>("")
+    var cbSetType: ComboBox<String> by singleAssign()
+
+    var isBurn = false
+    var burn: Label by singleAssign()
+
     var checkBox1: CheckBox by singleAssign()
     var checkBox2: CheckBox by singleAssign()
     var checkBox3: CheckBox by singleAssign()
@@ -65,6 +72,7 @@ class MainView : View("Экран Энергия") {
     var tfSetTime: TextField by singleAssign()
 
     var tableviewIOutSet: TableView<TableValuesIOutSet> by singleAssign()
+    var tableviewIOutSum: TableView<TableValueIOutSum> by singleAssign()
 
     var circleAvem71: Circle by singleAssign()
     var circleAvem72: Circle by singleAssign()
@@ -90,6 +98,8 @@ class MainView : View("Экран Энергия") {
 
     var buttonStart: Button by singleAssign()
     var buttonStop: Button by singleAssign()
+
+    var group = ToggleGroup()
 
     lateinit var comboBoxList: List<ComboBox<TestObjectsType>>
     lateinit var comboBoxListCount: List<ComboBox<String>>
@@ -140,6 +150,11 @@ class MainView : View("Экран Энергия") {
 
     var tableValueUOut = observableListOf(
         TableValueUOut(
+            SimpleStringProperty("")
+        )
+    )
+    var tableValueIOutSum = observableListOf(
+        TableValueIOutSum(
             SimpleStringProperty("")
         )
     )
@@ -218,6 +233,20 @@ class MainView : View("Экран Энергия") {
                         }
                     }
                 }
+                menu("Режим") {
+                    radiomenuitem("Виу", group) {
+                        action {
+                            isBurn = false
+                            burn.hide()
+                        }
+                    }.isSelected = true
+                    radiomenuitem("Прожиг", group) {
+                        action {
+                            isBurn = true
+                            burn.show()
+                        }
+                    }
+                }
                 menu("Информация") {
                     item("Версия ПО") {
                         action {
@@ -244,11 +273,46 @@ class MainView : View("Экран Энергия") {
                             hbox(spacing = 16.0) {
                                 paddingLeft = 64.0
                                 alignmentProperty().set(Pos.CENTER_LEFT)
-                                label("Заданные:   ")
+                                label("Тип схемы: ")
+                                cbSetType = combobox {
+                                    prefWidth = 130.0
+                                    alignment = Pos.CENTER
+                                    items = observableListOf("6 кВ", "10 кВ")
+                                    onAction = EventHandler {
+                                        Toast.makeText("Убедитесь в правильности сборки схемы трансформатора")
+                                            .show(Toast.ToastType.WARNING)
+                                        cbSetUList = observableListOf("Польз.")
+                                        if (cbSetType.value == "6 кВ") {
+                                            for (i in 1..12) {
+                                                cbSetUList.add("${i * 500}")
+                                            }
+                                        } else {
+                                            for (i in 1..20) {
+                                                cbSetUList.add("${i * 500}")
+                                            }
+                                        }
+                                        cbSetU.items.clear()
+                                        cbSetU.items = cbSetUList
+                                    }
+                                }
                                 label("U, В ")
+                                cbSetU = combobox {
+                                    prefWidth = 140.0
+                                    alignment = Pos.CENTER
+                                    onAction = EventHandler {
+                                        if (cbSetU.value == null) cbSetU.value = "Польз."
+                                        if (cbSetU.value != "Польз.") {
+                                            tfSetU.text = cbSetU.value.toString()
+                                            tfSetU.isEditable = false
+                                        } else {
+                                            tfSetU.text = "0"
+                                            tfSetU.isEditable = true
+                                        }
+                                    }
+                                }
                                 tfSetU = textfield {
                                     promptText = "Напряжение, В"
-                                    maxWidth = 180.0
+                                    maxWidth = 140.0
                                     alignment = Pos.CENTER
                                 }
                                 label("Ток, мА ")
@@ -267,7 +331,6 @@ class MainView : View("Экран Энергия") {
                                                     .show(Toast.ToastType.ERROR)
                                             }
                                         }
-
                                     }
                                 }
                                 label("Время, с ")
@@ -276,7 +339,6 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                 }
-                                paddingTop = 0.0
                             }
                             hbox(spacing = 16.0) {
                                 paddingLeft = 32.0
@@ -294,6 +356,7 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -304,16 +367,21 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox1.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox1.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox1.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox1.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
                                 comboBox1 = combobox {
                                     minWidth = 300.0
-
                                 }
                                 textField1 = textfield {
                                     minWidth = 300.0
@@ -331,13 +399,13 @@ class MainView : View("Экран Энергия") {
                                         textField2.isDisable = !isSelected
                                         cbCount2.isDisable = !isSelected
                                     }
-
                                 }
                                 cbCount2 = combobox {
                                     isEditable = true
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -348,10 +416,16 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox2.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox2.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox2.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox2.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
@@ -383,6 +457,7 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -393,10 +468,16 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox3.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox3.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox3.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox3.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
@@ -427,6 +508,7 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -437,13 +519,20 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox4.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox4.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox4.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox4.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
+
                                 comboBox4 = combobox {
                                     minWidth = 300.0
 
@@ -471,6 +560,7 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -481,10 +571,16 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox5.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox5.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox5.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox5.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
@@ -515,6 +611,7 @@ class MainView : View("Экран Энергия") {
                                     maxWidth = 120.0
                                     alignment = Pos.CENTER
                                     val list = observableListOf<String>()
+                                    list.add("Все")
                                     for (i in 1..25) {
                                         if (i != 1) {
                                             list.add("$i")
@@ -525,10 +622,16 @@ class MainView : View("Экран Энергия") {
                                     onAction = javafx.event.EventHandler {
                                         comboBox6.items.clear()
                                         if (!selectionModel.isEmpty) {
-                                            comboBox6.items = transaction {
-                                                TestObjectsType.all().toList().asObservable()
-                                            }.filter { it.cores == selectionModel.selectedItem.toString() }
-                                                .toObservable()
+                                            if (selectionModel.selectedItem.toString() == "Все") {
+                                                comboBox6.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.toObservable()
+                                            } else {
+                                                comboBox6.items = transaction {
+                                                    TestObjectsType.all().toList().asObservable()
+                                                }.filter { it.cores == selectionModel.selectedItem.toString() }
+                                                    .toObservable()
+                                            }
                                         }
                                     }
                                 }
@@ -546,14 +649,16 @@ class MainView : View("Экран Энергия") {
                         tableviewIOutSet = tableview(tableValuesIOutSet) {
                             minHeight = 404.0
                             maxHeight = 404.0
-                            minWidth = 200.0
+                            minWidth = 100.0
+                            maxWidth = 160.0
                             columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
-                            column("Заданные: I, мА", TableValuesIOutSet::amperage.getter).makeEditable()
+                            column("Зад.: I, мА", TableValuesIOutSet::amperage.getter).makeEditable()
                         }
                         tableview(tableValuesIOut) {
                             minHeight = 404.0
                             maxHeight = 404.0
-                            minWidth = 200.0
+                            minWidth = 100.0
+                            maxWidth = 160.0
                             columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
                             mouseTransparentProperty().set(true)
                             column("I, мА", TableValuesIOut::amperage.getter)
@@ -563,7 +668,7 @@ class MainView : View("Экран Энергия") {
                                 minHeight = 119.0
                                 maxHeight = 119.0
                                 minWidth = 200.0
-                                maxWidth = 200.0
+                                maxWidth = 160.0
                                 columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
                                 mouseTransparentProperty().set(true)
                                 column("U, В", TableValueUOut::voltage.getter)
@@ -576,6 +681,15 @@ class MainView : View("Экран Энергия") {
                                 columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
                                 mouseTransparentProperty().set(true)
                                 column("Время, с", TableValueTime::time.getter)
+                            }
+                            tableview(tableValueIOutSum) {
+                                minHeight = 119.0
+                                maxHeight = 119.0
+                                minWidth = 200.0
+                                maxWidth = 200.0
+                                columnResizePolicy = TableView.CONSTRAINED_RESIZE_POLICY
+                                mouseTransparentProperty().set(true)
+                                column("Ток, А", TableValueIOutSum::amperage.getter)
                             }
                         }
 //                        vbox {
@@ -590,8 +704,8 @@ class MainView : View("Экран Энергия") {
 //                                column("I, А", TableValuesIn::amperage.getter)
 //                            }
 //                        }
-
                     }
+
                     hbox(spacing = 16.0) {
                         alignmentProperty().set(Pos.CENTER)
                         anchorpane {
@@ -606,7 +720,7 @@ class MainView : View("Экран Энергия") {
                                 maxHeight = 400.0
                                 prefHeight = 400.0
                                 minWidth = 1200.0
-                                minWidth = 1200.0
+                                maxWidth = 1200.0
                                 prefWidth = 1200.0
                                 vBoxLog = vbox {
                                 }.addClass(Styles.maxTemp)
@@ -824,8 +938,10 @@ class MainView : View("Экран Энергия") {
                             }
                         }
                     }
-                    hbox(spacing = 6.0) {
+                    hbox(spacing = 32.0) {
                         alignment = Pos.CENTER
+                        burn = label("Активирован режим прожига").addClass(Styles.startStop)
+                        burn.hide()
                         buttonStart = button("Старт") {
                             minHeight = 100.0
                             minWidth = 600.0
@@ -897,8 +1013,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox1.selectionModel.clearSelection()
-                cbCount1.selectionModel.clearSelection()
+//                comboBox1.selectionModel.clearSelection()
+//                cbCount1.selectionModel.clearSelection()
             }
             if (checkBox2.isSelected) {
                 if (comboBox2.selectionModel.selectedItem == null) {
@@ -908,8 +1024,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox2.selectionModel.clearSelection()
-                cbCount2.selectionModel.clearSelection()
+//                comboBox2.selectionModel.clearSelection()
+//                cbCount2.selectionModel.clearSelection()
             }
             if (checkBox3.isSelected) {
                 if (comboBox3.selectionModel.selectedItem == null) {
@@ -919,8 +1035,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox3.selectionModel.clearSelection()
-                cbCount3.selectionModel.clearSelection()
+//                comboBox3.selectionModel.clearSelection()
+//                cbCount3.selectionModel.clearSelection()
             }
             if (checkBox4.isSelected) {
                 if (comboBox4.selectionModel.selectedItem == null) {
@@ -930,8 +1046,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox4.selectionModel.clearSelection()
-                cbCount4.selectionModel.clearSelection()
+//                comboBox4.selectionModel.clearSelection()
+//                cbCount4.selectionModel.clearSelection()
             }
             if (checkBox5.isSelected) {
                 if (comboBox5.selectionModel.selectedItem == null) {
@@ -941,8 +1057,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox5.selectionModel.clearSelection()
-                cbCount5.selectionModel.clearSelection()
+//                comboBox5.selectionModel.clearSelection()
+//                cbCount5.selectionModel.clearSelection()
             }
             if (checkBox6.isSelected) {
                 if (comboBox6.selectionModel.selectedItem == null) {
@@ -952,8 +1068,8 @@ class MainView : View("Экран Энергия") {
                     isFine = false
                 }
             } else {
-                comboBox6.selectionModel.clearSelection()
-                cbCount6.selectionModel.clearSelection()
+//                comboBox6.selectionModel.clearSelection()
+//                cbCount6.selectionModel.clearSelection()
             }
             if (!tfSetU.text.isInt()) {
                 isFine = false
@@ -970,13 +1086,12 @@ class MainView : View("Экран Энергия") {
             } else if (!isFine) {
                 runLater {
                     Toast.makeText("Проверьте правильность введенных данных").show(Toast.ToastType.ERROR)
-                    comboBoxList.forEach { it.isDisable = true }
-                    comboBoxListCount.forEach { it.isDisable = true }
-                    textFieldList.forEach { it.isDisable = true }
+                    setToDefault()
                 }
             } else if (!controller.isResponding) {
                 runLater {
                     Toast.makeText("Нет связи с устройствами").show(Toast.ToastType.ERROR)
+                    setToDefault()
                 }
             } else if (isOneCheckBoxSelected) {
                 runLater {
@@ -993,26 +1108,40 @@ class MainView : View("Экран Энергия") {
 
                 controller.start()
 
+                runLater {
+                    buttonStart.text = "Старт"
+                    mainMenubar.isDisable = false
+                    tableviewIOutSet.isDisable = false
+                    checkBoxList.forEach { it.isDisable = false }
+                    checkBoxList.forEach { it.isSelected = false }
+                    textFieldSet.forEach { it.isDisable = false }
+                    comboBoxListCount.forEach {
+                        it.selectionModel.clearSelection()
+                    }
+                    comboBoxList.forEach {
+                        it.selectionModel.clearSelection()
+                    }
+                }
             } else {
                 runLater {
                     Toast.makeText("Выберите хотя бы 1 ОИ").show(Toast.ToastType.ERROR)
                 }
             }
-            runLater {
-                buttonStart.text = "Старт"
-                mainMenubar.isDisable = false
-                tableviewIOutSet.isDisable = false
-                checkBoxList.forEach { it.isDisable = false }
-                checkBoxList.forEach { it.isSelected = false }
-                textFieldList.forEach { it.isDisable = false }
-                textFieldSet.forEach { it.isDisable = false }
-                comboBoxListCount.forEach {
-                    it.selectionModel.clearSelection()
-                }
-                comboBoxList.forEach {
-                    it.selectionModel.clearSelection()
-                }
-            }
+            checkBoxList.forEach { it.isSelected = false }
+        }
+    }
+
+    private fun setToDefault() {
+        comboBoxList.forEach { it.isDisable = true }
+        textFieldList.forEach { it.isDisable = true }
+        comboBoxListCount.forEach { it.isDisable = true }
+        checkBoxList.forEach { it.isDisable = false }
+        checkBoxList.forEach { it.isSelected = false }
+        comboBoxListCount.forEach {
+            it.selectionModel.clearSelection()
+        }
+        comboBoxList.forEach {
+            it.selectionModel.clearSelection()
         }
     }
 

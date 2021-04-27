@@ -17,6 +17,9 @@ data class TableValueUOut(
 data class TableValueTime(
         var time: StringProperty
 )
+data class TableValueIOutSum(
+        var amperage: StringProperty
+)
 
 data class TableValuesIn(
         var voltage: StringProperty,

@@ -137,11 +137,11 @@ class ObjectEditorWindow : View("Редактор объектов испыта�
                                     ObjectsTypes.id eq comboBoxTestItem.selectionModel.selectedItem.id
                                 }
                             }
+                            Toast.makeText("Объект удален").show(Toast.ToastType.ERROR)
                             setItemsOnCb()
                         } catch (e: Exception) {
                             Toast.makeText("Нечего удалять").show(Toast.ToastType.ERROR)
                         }
-                        Toast.makeText("Объект удален").show(Toast.ToastType.ERROR)
                     }
                 }
             }

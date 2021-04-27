@@ -153,7 +153,7 @@ class DeltaController(
 
     fun setObjectParams(fOut: Number, voltageP1: Number, fP1: Number) {
         try {
-            writeRegister(getRegisterById(MAX_VOLTAGE_REGISTER), (300.v() + 1).toShort())
+            writeRegister(getRegisterById(MAX_VOLTAGE_REGISTER), (400.v() + 1).toShort())
             writeRegister(getRegisterById(MAX_FREQUENCY_REGISTER), (50.hz() + 1).toShort())
             writeRegister(getRegisterById(NOM_FREQUENCY_REGISTER), (50.hz() + 1).toShort())
 
